@@ -1,3 +1,7 @@
+--[[
+    TABLE
+--]]
+
 function table.val_to_str ( v )
   if "string" == type( v ) then
     v = string.gsub( v, "\n", "\\n" )
@@ -44,10 +48,97 @@ function table.contains(table, value)
   return false
 end
 
+--[[
+    MATH
+--]]
+
 function math.round(value)
   return math.floor(value + 0.5)
 end
 
 function math.inrange(value, min, max)
   return min <= value and value <= max
+end
+
+function math.distance(a, b)
+  return math.sqrt(math.pow(a.x - b.x, 2) + math.pow(a.y - b.y, 2))
+end
+
+--[[
+    BOUNDING BOX
+--]]
+
+-- Round the x and y values in the bounding box
+function round_bounding_box(bbox)
+  return {
+    left_top = {
+      y = math.round(bbox.left_top.y),
+      x = math.round(bbox.left_top.x)
+    },
+    right_bottom = {
+      y = math.round(bbox.right_bottom.y),
+      x = math.round(bbox.right_bottom.x)
+    }
+  }
+end
+
+-- Get the center of the bounding box
+function get_bounding_box_center(bbox)
+  return {
+    y = (bbox.left_top.y + bbox.right_bottom.y) / 2,
+    x = (bbox.left_top.x + bbox.right_bottom.x) / 2
+  }
+end
+
+-- Get the dimensions of the bounding box
+function get_bounding_box_size(bbox)
+  return {
+    height = bbox.right_bottom.y - bbox.left_top.y,
+    width = bbox.right_bottom.x - bbox.left_top.x
+  }
+end
+
+--[[
+    DIRECTIONS
+--]]
+-- Maps 0->4->0, 2->6->2
+function mirror_direction(direction)
+  return (direction + 4) % 8
+end
+
+--    -y
+-- -x    +x
+--    +y
+function direction_to(from, to)
+  if from.x < to.x then
+    return defines.direction.east
+  elseif from.x > to.x then
+    return defines.direction.west
+  end
+  
+  if from.y < to.y then
+    return defines.direction.south
+  elseif from.y > to.y then
+    return defines.direction.north
+  end
+end
+
+--[[
+    POSITIONS
+--]]
+--    -y
+-- -x    +x
+--    +y
+function shift_position(position, shift, direction)
+  if direction == defines.direction.north then -- -y
+    return {x = position.x, y = position.y - shift}
+  elseif direction == defines.direction.east then -- +x
+    return {x = position.x + shift, y = position.y}
+  elseif direction == defines.direction.south then -- +y
+    return {x = position.x, y = position.y + shift}
+  elseif direction == defines.direction.west then -- -x
+    return {x = position.x - shift, y = position.y}
+  else
+    return nil
+  end
 end

@@ -9,7 +9,9 @@ local DEBUG_PLAYER = nil
 -- Name of a PipeNetworkHighlighter entity
 local ENTITY_NAME = "pnh-pipe-connection"
 
--- N/W=-y/-x
+--    -y
+-- -x    +x
+--    +y
 local CONNECTIONS = {
   NONE  = 0,
   NORTH = 1,
@@ -31,52 +33,18 @@ local VALID_ENTITY_TYPES = {
   "storage-tank"
 }
 
---[[
-    BOUNDING BOXES
---]]
+local ENTITY_NAME_BLACKLIST = {
+  "factory-fluid-dummy-connector",      -- Factorissimo2
+  "factory-fluid-dummy-connector-south" -- Factorissimo2
+}
 
--- Round the x and y values in the bounding box
-function round_bounding_box(bbox)
-  return {
-    left_top = {
-      y = math.round(bbox.left_top.y),
-      x = math.round(bbox.left_top.x)
-    },
-    right_bottom = {
-      y = math.round(bbox.right_bottom.y),
-      x = math.round(bbox.right_bottom.x)
-    }
-  }
-end
-
--- Get the center of the bounding box
-function get_bounding_box_center(bbox)
-  return {
-    y = (bbox.left_top.y + bbox.right_bottom.y) / 2,
-    x = (bbox.left_top.x + bbox.right_bottom.x) / 2
-  }
-end
-
--- Get the dimensions of the bounding box
-function get_bounding_box_size(bbox)
-  return {
-    height = bbox.right_bottom.y - bbox.left_top.y,
-    width = bbox.right_bottom.x - bbox.left_top.x
-  }
-end
-
--- Merge two bounding boxes into one large one
-function merge_bounding_boxes(bbox1, bbox2)
-  return {
-    left_top = {
-      y = math.min(bbox1.left_top.y, bbox2.left_top.y),
-      x = math.min(bbox1.left_top.x, bbox2.left_top.x)
-    },
-    right_bottom = {
-      y = math.max(bbox1.right_bottom.y, bbox2.right_bottom.y),
-      x = math.max(bbox1.right_bottom.x, bbox2.right_bottom.x)
-    }
-  }
+local function is_fluid_recipe(recipe)
+  for _, ingredient in pairs(recipe.ingredients) do
+    if ingredient.type == "fluid" then
+      return true
+    end
+  end
+  return false
 end
 
 --[[
@@ -105,19 +73,9 @@ local function get_connection_directions(entity)
     connection_flags = CONNECTIONS.NONE
   else
     for _, neighbor in pairs(entity.neighbours) do
-      --[[if neighbor.position.x < entity.position.x then -- WEST
-        connection_flags = bit32.bor(connection_flags, CONNECTIONS.WEST)
-      elseif neighbor.position.x > entity.position.x then -- EAST
-        connection_flags = bit32.bor(connection_flags, CONNECTIONS.EAST)
-      elseif neighbor.position.y < entity.position.y then -- NORTH
-        connection_flags = bit32.bor(connection_flags, CONNECTIONS.NORTH)
-      elseif neighbor.position.y > entity.position.y then -- SOUTH
-        connection_flags = bit32.bor(connection_flags, CONNECTIONS.SOUTH)
-      end--]]
-        
       local neigh_bbox = round_bounding_box(neighbor.bounding_box)
-      -- Since it can't be overlapping, assume that being inside of 
-      -- the bounding box on one axis means it is on a certain side
+      -- Since it can't be overlapping, assume that being inside the range of 
+      -- the bounding box on one axis means it is on a side intersecting that axis
       if math.inrange(entity.position.x, neigh_bbox.left_top.x, neigh_bbox.right_bottom.x) then
         if entity.position.y < neigh_bbox.left_top.y then
           connection_flags = bit32.bor(connection_flags, CONNECTIONS.SOUTH)
@@ -183,13 +141,40 @@ end
 local function visit_all_entities(entity)
   global.last_visited = global.last_visited or {}
   
-  if table.contains(VALID_ENTITY_TYPES, entity.type) and not table.contains(global.last_visited, entity) then
+  if table.contains(VALID_ENTITY_TYPES, entity.type) 
+    and not table.contains(global.last_visited, entity) 
+    and not table.contains(ENTITY_NAME_BLACKLIST, entity.name) then
+    -- Assembling machines are a valid entity type, but don't always allow pipe connections.
+    if entity.type == "assembling-machine"
+      and (not entity.recipe or not is_fluid_recipe(entity.recipe)) then
+      return
+    end
+    
     create_connection(entity.surface, 
       entity.position, 
       get_connection_directions(entity))
     table.insert(global.last_visited, entity)
     
+    -- Don't want to connect these pipes to the output pipes of the assembler
+    -- If there is only one item in global.last_visited, then this is the selected entity.
+    --    In that case we DO want to get output pipes.
+    if entity.type == "assembling-machine" and #global.last_visited > 1 then
+      return
+    end
+    
     for _, neighbor in pairs(entity.neighbours) do
+      -- Need to do long connections to underground neighbor.
+      if entity.type == "pipe-to-ground" 
+        and (entity.direction == defines.direction.north 
+          or entity.direction == defines.direction.east)
+          and direction_to(entity.position, neighbor.position) == mirror_direction(entity.direction) then
+        for i = 1, math.distance(entity.position, neighbor.position) - 1 do
+          create_connection(entity.surface, 
+            shift_position(entity.position, i, mirror_direction(entity.direction)), 
+            get_connection_directions(entity))
+        end
+      end
+      
       visit_all_entities(neighbor)
     end
   end
@@ -204,19 +189,15 @@ local event_handler = function (e)
   global.connections = global.connections or {}
   global.last_visited = global.last_visited or {}
   
-  if global.enable_overlay then
-    local player = game.players[e.player_index]
-    DEBUG_PLAYER = DEBUG_PLAYER or player
-    
-    local selected = player.selected
+  local player = game.players[e.player_index]
+  DEBUG_PLAYER = DEBUG_PLAYER or player
+  local selected = player.selected
+  
+  if global.enable_overlay and selected then
     -- Only rebuild if the previous last_visited didn't contain this entity
-    if selected then
-      if not table.contains(global.last_visited, selected) then
-        clear_connections()
-        visit_all_entities(selected)
-      end
-    else
+    if not table.contains(global.last_visited, selected) then
       clear_connections()
+      visit_all_entities(selected)
     end
   else
     clear_connections()

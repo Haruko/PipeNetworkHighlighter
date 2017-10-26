@@ -9,11 +9,11 @@ local function spritesheet_to_picture(file, row, col)
     }
 end
 
-local pipe_con_file = "__PipeNetworkHighlighter__/graphics/pipe-connection.png"
+local pipe_con_file = "__PipeNetworkHighlighter__/graphics/connection.png"
 
 local pipe_connections = {
   type = "simple-entity",
-  name = "pnh-pipe-connection",
+  name = "pnh-connection",
   flags = {"not-blueprintable",
            "not-deconstructable",
            "not-on-map",
@@ -48,19 +48,24 @@ local pipe_connections = {
     spritesheet_to_picture(pipe_con_file, 0, 12), -- 1100
     spritesheet_to_picture(pipe_con_file, 0, 13), -- 1101
     spritesheet_to_picture(pipe_con_file, 0, 14), -- 1110
-    spritesheet_to_picture(pipe_con_file, 0, 15)--, -- 1111
-    -- Row 1 is directional arrows                   WSEN
-    --spritesheet_to_picture(pipe_con_file, 1, 0),  -- 0000
-    --spritesheet_to_picture(pipe_con_file, 1, 1),  -- 0001
-    --spritesheet_to_picture(pipe_con_file, 1, 2),  -- 0010
-    --spritesheet_to_picture(pipe_con_file, 1, 4)   -- 0100
+    spritesheet_to_picture(pipe_con_file, 0, 15), -- 1111
+    -- Row 1 is large entity connections
+    spritesheet_to_picture(pipe_con_file, 1, 0),  -- center
+    spritesheet_to_picture(pipe_con_file, 1, 1),  -- north edge
+    spritesheet_to_picture(pipe_con_file, 1, 2),  -- east edge
+    spritesheet_to_picture(pipe_con_file, 1, 3),  -- south edge
+    spritesheet_to_picture(pipe_con_file, 1, 4),  -- west edge
+    spritesheet_to_picture(pipe_con_file, 1, 5),  -- northwest corner
+    spritesheet_to_picture(pipe_con_file, 1, 6),  -- northeast corner
+    spritesheet_to_picture(pipe_con_file, 1, 7),  -- southeast corner
+    spritesheet_to_picture(pipe_con_file, 1, 8)   -- southwest corner
   }
 }
 
 local hotkey = {
   type = "custom-input",
   name = "pnh-hotkey",
-  key_sequence = "KEY69", -- '/"
+  key_sequence = "KEY69", -- apostrophe
   consuming = "none"
 }
 

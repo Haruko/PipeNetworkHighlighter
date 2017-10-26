@@ -7,7 +7,7 @@ local DEBUG_PLAYER = nil
 --]]
 
 -- Name of a PipeNetworkHighlighter entity
-local ENTITY_NAME = "pnh-pipe-connection"
+local ENTITY_NAME = "pnh-connection"
 
 --    -y
 -- -x    +x
@@ -17,7 +17,16 @@ local CONNECTIONS = {
   NORTH = 1,
   EAST  = 2,
   SOUTH = 4,
-  WEST  = 8
+  WEST  = 8,
+  CENTER = 16 + 0,
+  EDGE_NORTH  = 16 + 1,
+  EDGE_EAST   = 16 + 2,
+  EDGE_SOUTH  = 16 + 3,
+  EDGE_WEST   = 16 + 4,
+  CORNER_NORTHWEST = 16 + 5,
+  CORNER_NORTHEAST = 16 + 6,
+  CORNER_SOUTHEAST = 16 + 7,
+  CORNER_SOUTHWEST = 16 + 8
 }
 
 local VALID_ENTITY_TYPES = {
@@ -66,28 +75,21 @@ end
 
 local function get_connection_directions(entity)
   local connection_flags = 0
-  local entity_bbox = round_bounding_box(entity.bounding_box)
-  local entity_size = get_bounding_box_size(entity_bbox)
-  
-  if entity_size.width > 1 or entity_size.height > 1 then
-    connection_flags = CONNECTIONS.NONE
-  else
-    for _, neighbor in pairs(entity.neighbours) do
-      local neigh_bbox = round_bounding_box(neighbor.bounding_box)
-      -- Since it can't be overlapping, assume that being inside the range of 
-      -- the bounding box on one axis means it is on a side intersecting that axis
-      if math.inrange(entity.position.x, neigh_bbox.left_top.x, neigh_bbox.right_bottom.x) then
-        if entity.position.y < neigh_bbox.left_top.y then
-          connection_flags = bit32.bor(connection_flags, CONNECTIONS.SOUTH)
-        else
-          connection_flags = bit32.bor(connection_flags, CONNECTIONS.NORTH)
-        end
-      elseif math.inrange(entity.position.y, neigh_bbox.left_top.y, neigh_bbox.right_bottom.y) then
-        if entity.position.x < neigh_bbox.left_top.x then
-          connection_flags = bit32.bor(connection_flags, CONNECTIONS.EAST)
-        else
-          connection_flags = bit32.bor(connection_flags, CONNECTIONS.WEST)
-        end
+  for _, neighbor in pairs(entity.neighbours) do
+    local neigh_bbox = round_bounding_box(neighbor.bounding_box)
+    -- Since it can't be overlapping, assume that being inside the range of 
+    -- the bounding box on one axis means it is on a side intersecting that axis
+    if math.inrange(entity.position.x, neigh_bbox.left_top.x, neigh_bbox.right_bottom.x) then
+      if entity.position.y < neigh_bbox.left_top.y then
+        connection_flags = bit32.bor(connection_flags, CONNECTIONS.SOUTH)
+      else
+        connection_flags = bit32.bor(connection_flags, CONNECTIONS.NORTH)
+      end
+    elseif math.inrange(entity.position.y, neigh_bbox.left_top.y, neigh_bbox.right_bottom.y) then
+      if entity.position.x < neigh_bbox.left_top.x then
+        connection_flags = bit32.bor(connection_flags, CONNECTIONS.EAST)
+      else
+        connection_flags = bit32.bor(connection_flags, CONNECTIONS.WEST)
       end
     end
   end
@@ -103,39 +105,56 @@ local function create_connection(surface, position, connection_flags)
   table.insert(global.connections, connection)
 end
 
-local function outline_bounding_box(surface, bbox)
-  local size = get_bounding_box_size(bbox)
+local function create_large_entity_connections(surface, bbox)
+  local bbox_size = get_bounding_box_size(bbox)
+  -- corners
+  create_connection(surface, 
+    bbox.left_top, 
+    CONNECTIONS.CORNER_NORTHWEST)
   
-  local position = {}
-  local connection_flags = 0
-  for x = 0, size.width - 1 do
-    if x == 0 or x == size.width - 1 then
-      -- If we are in the left-most or right-most columns, go down the entire side
-      connection_flags = bit32.bor(CONNECTIONS.NORTH, CONNECTIONS.SOUTH)
-      for y = 1, size.height - 2 do
-        position = {y = bbox.left_top.y + y + 0.5, x = bbox.left_top.x + x + 0.5}
-        create_connection(surface, position, connection_flags)
+  create_connection(surface, 
+    {x = bbox.right_bottom.x, y = bbox.left_top.y}, 
+    CONNECTIONS.CORNER_NORTHEAST)
+  
+  create_connection(surface, 
+    bbox.right_bottom, 
+    CONNECTIONS.CORNER_SOUTHEAST)
+  
+  create_connection(surface, 
+    {x = bbox.left_top.x, y = bbox.right_bottom.y}, 
+    CONNECTIONS.CORNER_SOUTHWEST)
+  
+  for x = 0, bbox_size.width do
+    -- top and bottom edge
+    if x > 0 and x < bbox_size.width then
+      create_connection(surface, 
+        shift_position(bbox.left_top, x, defines.direction.east),
+        CONNECTIONS.EDGE_NORTH)
+      
+      create_connection(surface, 
+        shift_position(bbox.right_bottom, x, defines.direction.west),
+        CONNECTIONS.EDGE_SOUTH)
+    end
+    
+    for y = 1, bbox_size.height - 1 do
+      if x == 0 then
+        -- left edge
+        create_connection(surface, 
+          shift_position(bbox.left_top, y, defines.direction.south),
+          CONNECTIONS.EDGE_WEST)
+      elseif x == bbox_size.width then
+        -- right edge
+        create_connection(surface, 
+          shift_position(bbox.right_bottom, y, defines.direction.north),
+          CONNECTIONS.EDGE_EAST)
+      else
+        -- center
+        create_connection(surface, 
+          {x = bbox.left_top.x + x, y = bbox.left_top.y + y},
+          CONNECTIONS.CENTER)
       end
-      -- Special for corners
-      connection_flags = CONNECTIONS.EAST
-      if x == size.width - 1 then
-        connection_flags = CONNECTIONS.WEST
-      end
-      position = {y = bbox.left_top.y + 0.5, x = bbox.left_top.x + x+ 0.5}
-      create_connection(surface, position, bit32.bor(connection_flags, CONNECTIONS.SOUTH))
-      position = {y = bbox.right_bottom.y - 1 + 0.5, x = bbox.left_top.x + x + 0.5}
-      create_connection(surface, position, bit32.bor(connection_flags, CONNECTIONS.NORTH))
-    else
-      -- If we are in a central column, only do the top and bottom edges
-      connection_flags = bit32.bor(CONNECTIONS.EAST, CONNECTIONS.WEST)
-      position = {y = bbox.left_top.y + 0.5, x = bbox.left_top.x + x + 0.5}
-      create_connection(surface, position, connection_flags)
-      position.y = bbox.right_bottom.y - 1 + 0.5
-      create_connection(surface, position, connection_flags)
     end
   end
-  
-  create_connection(surface, get_bounding_box_center(bbox), 15)
 end
 
 local function visit_all_entities(entity)
@@ -150,9 +169,15 @@ local function visit_all_entities(entity)
       return
     end
     
-    create_connection(entity.surface, 
-      entity.position, 
-      get_connection_directions(entity))
+    local rounded_bbox = round_bounding_box(entity.bounding_box)
+    local entity_size = get_bounding_box_size(rounded_bbox)
+    if entity_size.width > 1 or entity_size.height > 1 then
+      create_large_entity_connections(entity.surface, rounded_bbox)
+    else
+      create_connection(entity.surface, 
+        entity.position, 
+        get_connection_directions(entity))
+    end
     table.insert(global.last_visited, entity)
     
     -- Don't want to connect these pipes to the output pipes of the assembler

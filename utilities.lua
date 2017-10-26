@@ -129,16 +129,32 @@ end
 --    -y
 -- -x    +x
 --    +y
+-- shift2 and direction2 optional, does second shift
 function shift_position(position, shift, direction)
-  if direction == defines.direction.north then -- -y
-    return {x = position.x, y = position.y - shift}
-  elseif direction == defines.direction.east then -- +x
-    return {x = position.x + shift, y = position.y}
-  elseif direction == defines.direction.south then -- +y
-    return {x = position.x, y = position.y + shift}
-  elseif direction == defines.direction.west then -- -x
-    return {x = position.x - shift, y = position.y}
-  else
-    return nil
+  local ret = {x = position.x, y = position.y}
+  if direction == defines.direction.northwest
+    or direction == defines.direction.north
+    or direction == defines.direction.northeast then -- -y
+    ret.y = ret.y - shift
   end
+  
+  if direction == defines.direction.northeast
+    or direction == defines.direction.east
+    or direction == defines.direction.southeast then -- +x
+    ret.x = ret.x + shift
+  end
+  
+  if direction == defines.direction.southeast
+    or direction == defines.direction.south
+    or direction == defines.direction.southwest then -- +y
+    ret.y = ret.y + shift
+  end
+  
+  if direction == defines.direction.southwest
+    or direction == defines.direction.west
+    or direction == defines.direction.northwest then -- -x
+    ret.x = ret.x - shift
+  end
+  
+  return ret
 end

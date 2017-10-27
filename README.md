@@ -15,6 +15,8 @@ Get newest release from [Releases](https://github.com/ZoeyBonaventura/PipeNetwor
 
 ### Changelog
 
+- #### v0.3.1
+  - Fixed a bug with underground pipes not showing their proper connections.
 - #### v0.3.0
   - Complete rewrite.
   - Changed hotkey to apostrophe.

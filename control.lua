@@ -193,10 +193,16 @@ local function visit_all_entities(entity)
         and (entity.direction == defines.direction.north 
           or entity.direction == defines.direction.east)
           and direction_to(entity.position, neighbor.position) == mirror_direction(entity.direction) then
+        -- Get proper 2-way connection
+        local connection_flags = bit32.bor(CONNECTIONS.NORTH, CONNECTIONS.SOUTH)
+        if entity.direction == defines.direction.east then
+          connection_flags = bit32.bor(CONNECTIONS.EAST, CONNECTIONS.WEST)
+        end
+        
         for i = 1, math.distance(entity.position, neighbor.position) - 1 do
           create_connection(entity.surface, 
             shift_position(entity.position, i, mirror_direction(entity.direction)), 
-            get_connection_directions(entity))
+            connection_flags)
         end
       end
       

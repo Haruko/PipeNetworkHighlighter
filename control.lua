@@ -47,12 +47,33 @@ local ENTITY_NAME_BLACKLIST = {
   "factory-fluid-dummy-connector-south" -- Factorissimo2
 }
 
-local function is_fluid_recipe(recipe)
-  for _, ingredient in pairs(recipe.ingredients) do
-    if ingredient.type == "fluid" then
+local function list_contains_fluids(item_list)
+  for _, item in pairs(item_list) do
+    if item.type == "fluid" then
       return true
     end
   end
+  
+  return false
+end
+
+local function drill_connects_to_pipe(drill_entity)
+  -- Search the resources under the drill's mining area.
+  local drill_range = drill_entity.prototype.mining_drill_radius
+  local drill_search_area = round_bounding_box({
+    left_top = shift_position(drill_entity.position, drill_range, defines.direction.northwest), 
+    right_bottom = shift_position(drill_entity.position, drill_range, defines.direction.southeast)
+  })
+  local resources = drill_entity.surface.find_entities_filtered({
+    area = drill_search_area, type = "resource"
+  })
+  for _, resource in pairs(resources) do
+    if resource.prototype.mineable_properties.required_fluid 
+      or list_contains_fluids(resource.prototype.mineable_properties.products) then
+      return true
+    end
+  end
+  
   return false
 end
 
@@ -161,11 +182,18 @@ local function visit_all_entities(entity)
   global.last_visited = global.last_visited or {}
   
   if table.contains(VALID_ENTITY_TYPES, entity.type) 
-    and not table.contains(global.last_visited, entity) 
-    and not table.contains(ENTITY_NAME_BLACKLIST, entity.name) then
-    -- Assembling machines are a valid entity type, but don't always allow pipe connections.
-    if entity.type == "assembling-machine"
-      and (not entity.recipe or not is_fluid_recipe(entity.recipe)) then
+    and not table.contains(ENTITY_NAME_BLACKLIST, entity.name) 
+    and not table.contains(global.last_visited, entity) then
+    -- These are valid entity types, but don't always allow pipe connections.
+    if entity.type == "assembling-machine" 
+      and (not entity.recipe or (not list_contains_fluids(entity.recipe.ingredients)
+        and not list_contains_fluids(entity.recipe.products))) then
+      -- Need to check assembler recipe to make sure it uses or produces fluids
+      return
+    elseif entity.type == "mining-drill" and not drill_connects_to_pipe(entity) then
+      -- If it is a mining-drill it can harvest or use fluids.
+      -- If it can mine solids, then check if it requires fluid to mine.
+      -- If it can't mine solids then assume it mines fluids.
       return
     end
     
@@ -178,6 +206,7 @@ local function visit_all_entities(entity)
         entity.position, 
         get_connection_directions(entity))
     end
+    
     table.insert(global.last_visited, entity)
     
     -- Don't want to connect these pipes to the output pipes of the assembler

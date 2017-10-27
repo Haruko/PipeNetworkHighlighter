@@ -15,6 +15,9 @@ Get newest release from [Releases](https://github.com/ZoeyBonaventura/PipeNetwor
 
 ### Changelog
 
+- #### v0.3.2
+  - Fixed a crash when hovering over a mining drill or pumpjack that doesn't require or produce fluid.
+  - Consequently fixed a bug where assembly machines producing a fluid would not connect correctly.
 - #### v0.3.1
   - Fixed a bug with underground pipes not showing their proper connections.
 - #### v0.3.0

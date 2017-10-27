@@ -12,9 +12,11 @@ Get newest release from [Releases](https://github.com/ZoeyBonaventura/PipeNetwor
 
 ### TODO
  - [ ] Improve speed. (Currently starts to lag a little at ~500 entities on i7-2600k)
+ - [ ] Figure out a way to get around boilers not giving a full list of neighbors.
 
 ### Changelog
-
+- #### v0.3.3
+  - Fixed clipping of underground-pipe bridge entities and above ground entities.
 - #### v0.3.2
   - Fixed a crash when hovering over a mining drill or pumpjack that doesn't require or produce fluid.
   - Consequently fixed a bug where assembly machines producing a fluid would not connect correctly.

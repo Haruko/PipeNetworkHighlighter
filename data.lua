@@ -11,7 +11,7 @@ end
 
 local pipe_con_file = "__PipeNetworkHighlighter__/graphics/connection.png"
 
-local pipe_connections = {
+local pipe_connection = {
   type = "simple-entity",
   name = "pnh-connection",
   flags = {"not-blueprintable",
@@ -26,7 +26,7 @@ local pipe_connections = {
   selection_box = nil,
   bounding_box = {0, 0},
   secondary_bounding_box = nil,
-  render_layer = "arrow",
+  render_layer = "air-entity-info-con",--"arrow",
   destructible = false,
   operable = false,
   rotatable = false,
@@ -48,17 +48,41 @@ local pipe_connections = {
     spritesheet_to_picture(pipe_con_file, 0, 12), -- 1100
     spritesheet_to_picture(pipe_con_file, 0, 13), -- 1101
     spritesheet_to_picture(pipe_con_file, 0, 14), -- 1110
-    spritesheet_to_picture(pipe_con_file, 0, 15), -- 1111
+    spritesheet_to_picture(pipe_con_file, 0, 15)  -- 1111
+  }
+}
+
+local non_pipe_connection = {
+  type = "simple-entity",
+  name = "pnh-non-pipe-connection",
+  flags = {"not-blueprintable",
+           "not-deconstructable",
+           "not-on-map",
+           "placeable-off-grid"},
+  max_health = 100,
+  selectable_in_game = false,
+  minable = nil,
+  collision_box = nil,
+  collision_mask = {},
+  selection_box = nil,
+  bounding_box = {0, 0},
+  secondary_bounding_box = nil,
+  render_layer = "air-object", --"air-entity-info-con",--"arrow",
+  destructible = false,
+  operable = false,
+  rotatable = false,
+  pictures =
+  {
     -- Row 1 is large entity connections
-    spritesheet_to_picture(pipe_con_file, 1, 0),  -- center
-    spritesheet_to_picture(pipe_con_file, 1, 1),  -- north edge
-    spritesheet_to_picture(pipe_con_file, 1, 2),  -- east edge
-    spritesheet_to_picture(pipe_con_file, 1, 3),  -- south edge
-    spritesheet_to_picture(pipe_con_file, 1, 4),  -- west edge
-    spritesheet_to_picture(pipe_con_file, 1, 5),  -- northwest corner
-    spritesheet_to_picture(pipe_con_file, 1, 6),  -- northeast corner
-    spritesheet_to_picture(pipe_con_file, 1, 7),  -- southeast corner
-    spritesheet_to_picture(pipe_con_file, 1, 8)   -- southwest corner
+    spritesheet_to_picture(pipe_con_file, 1, 0), -- center
+    spritesheet_to_picture(pipe_con_file, 1, 1), -- north edge
+    spritesheet_to_picture(pipe_con_file, 1, 2), -- east edge
+    spritesheet_to_picture(pipe_con_file, 1, 3), -- south edge
+    spritesheet_to_picture(pipe_con_file, 1, 4), -- west edge
+    spritesheet_to_picture(pipe_con_file, 1, 5), -- northwest corner
+    spritesheet_to_picture(pipe_con_file, 1, 6), -- northeast corner
+    spritesheet_to_picture(pipe_con_file, 1, 7), -- southeast corner
+    spritesheet_to_picture(pipe_con_file, 1, 8)  -- southwest corner
   }
 }
 
@@ -69,5 +93,4 @@ local hotkey = {
   consuming = "none"
 }
 
-data:extend{pipe_connections,
-            hotkey}
+data:extend({pipe_connection, non_pipe_connection, hotkey})

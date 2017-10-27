@@ -7,7 +7,8 @@ local DEBUG_PLAYER = nil
 --]]
 
 -- Name of a PipeNetworkHighlighter entity
-local ENTITY_NAME = "pnh-connection"
+local PIPE_ENTITY_NAME = "pnh-connection"
+local NON_PIPE_ENTITY_NAME = "pnh-non-pipe-connection"
 
 --    -y
 -- -x    +x
@@ -18,15 +19,18 @@ local CONNECTIONS = {
   EAST  = 2,
   SOUTH = 4,
   WEST  = 8,
-  CENTER = 16 + 0,
-  EDGE_NORTH  = 16 + 1,
-  EDGE_EAST   = 16 + 2,
-  EDGE_SOUTH  = 16 + 3,
-  EDGE_WEST   = 16 + 4,
-  CORNER_NORTHWEST = 16 + 5,
-  CORNER_NORTHEAST = 16 + 6,
-  CORNER_SOUTHEAST = 16 + 7,
-  CORNER_SOUTHWEST = 16 + 8
+}
+
+local LARGE_ENTITY_CONNECTIONS = {
+  CENTER = 0,
+  EDGE_NORTH  = 1,
+  EDGE_EAST   = 2,
+  EDGE_SOUTH  = 3,
+  EDGE_WEST   = 4,
+  CORNER_NORTHWEST = 5,
+  CORNER_NORTHEAST = 6,
+  CORNER_SOUTHEAST = 7,
+  CORNER_SOUTHWEST = 8
 }
 
 local VALID_ENTITY_TYPES = {
@@ -40,6 +44,11 @@ local VALID_ENTITY_TYPES = {
   "pipe-to-ground",
   "pump",
   "storage-tank"
+}
+
+local PIPE_ENTITY_LIST = {
+  "pipe",
+  "pipe-to-ground"
 }
 
 local ENTITY_NAME_BLACKLIST = {
@@ -118,43 +127,49 @@ local function get_connection_directions(entity)
   return connection_flags
 end
 
-local function create_connection(surface, position, connection_flags)
+local function create_connection(surface, position, connection_entity, connection_flags)
   global.connections = global.connections or {}
   
-  local connection = surface.create_entity{name = ENTITY_NAME, position = position}
+  local connection = surface.create_entity{name = connection_entity, position = position}
   connection.graphics_variation = connection_flags + 1
   table.insert(global.connections, connection)
 end
 
-local function create_large_entity_connections(surface, bbox)
+local function create_non_pipe_entity_connections(surface, bbox)
   local bbox_size = get_bounding_box_size(bbox)
   -- corners
   create_connection(surface, 
     bbox.left_top, 
-    CONNECTIONS.CORNER_NORTHWEST)
+    NON_PIPE_ENTITY_NAME, 
+    LARGE_ENTITY_CONNECTIONS.CORNER_NORTHWEST)
   
   create_connection(surface, 
     {x = bbox.right_bottom.x, y = bbox.left_top.y}, 
-    CONNECTIONS.CORNER_NORTHEAST)
+    NON_PIPE_ENTITY_NAME, 
+    LARGE_ENTITY_CONNECTIONS.CORNER_NORTHEAST)
   
   create_connection(surface, 
     bbox.right_bottom, 
-    CONNECTIONS.CORNER_SOUTHEAST)
+    NON_PIPE_ENTITY_NAME, 
+    LARGE_ENTITY_CONNECTIONS.CORNER_SOUTHEAST)
   
   create_connection(surface, 
     {x = bbox.left_top.x, y = bbox.right_bottom.y}, 
-    CONNECTIONS.CORNER_SOUTHWEST)
+    NON_PIPE_ENTITY_NAME, 
+    LARGE_ENTITY_CONNECTIONS.CORNER_SOUTHWEST)
   
   for x = 0, bbox_size.width do
     -- top and bottom edge
     if x > 0 and x < bbox_size.width then
       create_connection(surface, 
         shift_position(bbox.left_top, x, defines.direction.east),
-        CONNECTIONS.EDGE_NORTH)
+        NON_PIPE_ENTITY_NAME, 
+        LARGE_ENTITY_CONNECTIONS.EDGE_NORTH)
       
       create_connection(surface, 
         shift_position(bbox.right_bottom, x, defines.direction.west),
-        CONNECTIONS.EDGE_SOUTH)
+        NON_PIPE_ENTITY_NAME, 
+        LARGE_ENTITY_CONNECTIONS.EDGE_SOUTH)
     end
     
     for y = 1, bbox_size.height - 1 do
@@ -162,17 +177,20 @@ local function create_large_entity_connections(surface, bbox)
         -- left edge
         create_connection(surface, 
           shift_position(bbox.left_top, y, defines.direction.south),
-          CONNECTIONS.EDGE_WEST)
+          NON_PIPE_ENTITY_NAME, 
+          LARGE_ENTITY_CONNECTIONS.EDGE_WEST)
       elseif x == bbox_size.width then
         -- right edge
         create_connection(surface, 
           shift_position(bbox.right_bottom, y, defines.direction.north),
-          CONNECTIONS.EDGE_EAST)
+          NON_PIPE_ENTITY_NAME, 
+          LARGE_ENTITY_CONNECTIONS.EDGE_EAST)
       else
         -- center
         create_connection(surface, 
           {x = bbox.left_top.x + x, y = bbox.left_top.y + y},
-          CONNECTIONS.CENTER)
+          NON_PIPE_ENTITY_NAME, 
+          LARGE_ENTITY_CONNECTIONS.CENTER)
       end
     end
   end
@@ -199,11 +217,13 @@ local function visit_all_entities(entity)
     
     local rounded_bbox = round_bounding_box(entity.bounding_box)
     local entity_size = get_bounding_box_size(rounded_bbox)
-    if entity_size.width > 1 or entity_size.height > 1 then
-      create_large_entity_connections(entity.surface, rounded_bbox)
+    if not table.contains(PIPE_ENTITY_LIST, entity.type) then
+      -- If it's not a pipe, it's some sore of machine
+      create_non_pipe_entity_connections(entity.surface, rounded_bbox)
     else
       create_connection(entity.surface, 
         entity.position, 
+        PIPE_ENTITY_NAME, 
         get_connection_directions(entity))
     end
     
@@ -231,6 +251,7 @@ local function visit_all_entities(entity)
         for i = 1, math.distance(entity.position, neighbor.position) - 1 do
           create_connection(entity.surface, 
             shift_position(entity.position, i, mirror_direction(entity.direction)), 
+            PIPE_ENTITY_NAME, 
             connection_flags)
         end
       end

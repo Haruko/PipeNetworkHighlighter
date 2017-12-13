@@ -13,6 +13,7 @@ Get newest release from [Releases](https://github.com/ZoeyBonaventura/PipeNetwor
 ### TODO
  - [ ] Improve speed. (Currently starts to lag a little at ~500 entities on i7-2600k)
  - [ ] Figure out a way to get around boilers not giving a full list of neighbors.
+ - [ ] 1x1 pipes with the type "storage tank" are considered storage tanks when they should be pipes. Might have to make a patch for each mod for this one.
 
 ### Changelog
 - #### v0.3.3
